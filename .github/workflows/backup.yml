@@ -1,11 +1,27 @@
-name: Backup Supabase
+name: Supabase Backup Test
 
 on:
   workflow_dispatch:
 
 jobs:
-  test:
+  backup:
     runs-on: ubuntu-latest
 
     steps:
-      - run: echo "Hello Backup"
+      - name: Install PostgreSQL Client
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+
+      - name: Test Connection and Dump
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          pg_dump "$DATABASE_URL" > backup.sql
+          ls -lh backup.sql
+
+      - name: Upload Backup
+        uses: actions/upload-artifact@v4
+        with:
+          name: backup
+          path: backup.sql
