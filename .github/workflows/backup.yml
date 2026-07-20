@@ -13,41 +13,42 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y postgresql-client dnsutils
 
-      - name: Debug DATABASE_URL
+      - name: Check DNS
         env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DB_HOST: ${{ secrets.DB_HOST }}
         run: |
-          echo "=== DATABASE_URL ==="
-          echo "$DATABASE_URL" | sed -E 's#://([^:]+):.*@#://\1:***@#'
-
-      - name: Show DNS Resolution
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-        run: |
-          HOST=$(echo "$DATABASE_URL" | sed -E 's#.*@([^:/]+).*#\1#')
-
-          echo "Host: $HOST"
-
-          echo "=== DNS Lookup ==="
-          nslookup "$HOST" || true
+          echo "Host: $DB_HOST"
 
           echo "=== IPv4 ==="
-          dig A "$HOST" +short || true
+          dig A $DB_HOST +short || true
 
           echo "=== IPv6 ==="
-          dig AAAA "$HOST" +short || true
+          dig AAAA $DB_HOST +short || true
 
       - name: Test PostgreSQL Connection
         env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          PGHOST: ${{ secrets.DB_HOST }}
+          PGPORT: ${{ secrets.DB_PORT }}
+          PGDATABASE: ${{ secrets.DB_NAME }}
+          PGUSER: ${{ secrets.DB_USER }}
+          PGPASSWORD: ${{ secrets.DB_PASSWORD }}
         run: |
-          psql "$DATABASE_URL" -c "SELECT version();"
+          echo "Testing connection..."
+          psql -c "SELECT version();"
 
       - name: Create Backup
         env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          PGHOST: ${{ secrets.DB_HOST }}
+          PGPORT: ${{ secrets.DB_PORT }}
+          PGDATABASE: ${{ secrets.DB_NAME }}
+          PGUSER: ${{ secrets.DB_USER }}
+          PGPASSWORD: ${{ secrets.DB_PASSWORD }}
         run: |
-          pg_dump "$DATABASE_URL" > backup.sql
+          pg_dump \
+            --no-owner \
+            --no-privileges \
+            > backup.sql
+
           ls -lh backup.sql
 
       - name: Upload Backup Artifact
