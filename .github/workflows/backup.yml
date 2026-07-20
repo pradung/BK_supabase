@@ -11,17 +11,39 @@ jobs:
       - name: Install PostgreSQL Client
         run: |
           sudo apt-get update
-          sudo apt-get install -y postgresql-client
+          sudo apt-get install -y postgresql-client dnsutils
 
-      - name: Test Connection and Dump
+      - name: Show DNS Resolution
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          HOST=$(echo "$DATABASE_URL" | sed -E 's#.*@([^:/]+).*#\1#')
+          echo "Host: $HOST"
+
+          echo "=== DNS Lookup ==="
+          nslookup $HOST || true
+
+          echo "=== IPv4 ==="
+          dig A $HOST +short || true
+
+          echo "=== IPv6 ==="
+          dig AAAA $HOST +short || true
+
+      - name: Test PostgreSQL Connection
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          psql "$DATABASE_URL" -c "SELECT version();"
+
+      - name: Create Backup
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: |
           pg_dump "$DATABASE_URL" > backup.sql
           ls -lh backup.sql
 
-      - name: Upload Backup
+      - name: Upload Backup Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: backup
+          name: supabase-backup
           path: backup.sql
