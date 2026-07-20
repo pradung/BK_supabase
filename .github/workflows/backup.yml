@@ -13,21 +13,29 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y postgresql-client dnsutils
 
+      - name: Debug DATABASE_URL
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          echo "=== DATABASE_URL ==="
+          echo "$DATABASE_URL" | sed -E 's#://([^:]+):.*@#://\1:***@#'
+
       - name: Show DNS Resolution
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: |
           HOST=$(echo "$DATABASE_URL" | sed -E 's#.*@([^:/]+).*#\1#')
+
           echo "Host: $HOST"
 
           echo "=== DNS Lookup ==="
-          nslookup $HOST || true
+          nslookup "$HOST" || true
 
           echo "=== IPv4 ==="
-          dig A $HOST +short || true
+          dig A "$HOST" +short || true
 
           echo "=== IPv6 ==="
-          dig AAAA $HOST +short || true
+          dig AAAA "$HOST" +short || true
 
       - name: Test PostgreSQL Connection
         env:
