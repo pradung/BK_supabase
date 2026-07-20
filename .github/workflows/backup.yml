@@ -1,4 +1,4 @@
-name: Supabase Backup Test
+name: Supabase Backup
 
 on:
   workflow_dispatch:
@@ -13,17 +13,37 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y postgresql-client dnsutils
 
+      - name: Debug Configuration
+        env:
+          DB_HOST: ${{ secrets.DB_HOST }}
+          DB_PORT: ${{ secrets.DB_PORT }}
+          DB_NAME: ${{ secrets.DB_NAME }}
+          DB_USER: ${{ secrets.DB_USER }}
+        run: |
+          echo "=== Database Config ==="
+          echo "HOST: $DB_HOST"
+          echo "PORT: $DB_PORT"
+          echo "DATABASE: $DB_NAME"
+          echo "USER: $DB_USER"
+
+          echo ""
+          echo "=== User Length ==="
+          echo "${#DB_USER}"
+
       - name: Check DNS
         env:
           DB_HOST: ${{ secrets.DB_HOST }}
         run: |
-          echo "Host: $DB_HOST"
+          echo "=== DNS Lookup ==="
+          nslookup "$DB_HOST" || true
 
+          echo ""
           echo "=== IPv4 ==="
-          dig A $DB_HOST +short || true
+          dig A "$DB_HOST" +short || true
 
+          echo ""
           echo "=== IPv6 ==="
-          dig AAAA $DB_HOST +short || true
+          dig AAAA "$DB_HOST" +short || true
 
       - name: Test PostgreSQL Connection
         env:
@@ -33,10 +53,10 @@ jobs:
           PGUSER: ${{ secrets.DB_USER }}
           PGPASSWORD: ${{ secrets.DB_PASSWORD }}
         run: |
-          echo "Testing connection..."
-          psql -c "SELECT version();"
+          echo "=== Testing PostgreSQL ==="
+          psql -c "SELECT current_user, current_database(), version();"
 
-      - name: Create Backup
+      - name: Create Database Backup
         env:
           PGHOST: ${{ secrets.DB_HOST }}
           PGPORT: ${{ secrets.DB_PORT }}
@@ -44,15 +64,18 @@ jobs:
           PGUSER: ${{ secrets.DB_USER }}
           PGPASSWORD: ${{ secrets.DB_PASSWORD }}
         run: |
+          echo "=== Creating Backup ==="
+
           pg_dump \
             --no-owner \
             --no-privileges \
             > backup.sql
 
+          echo "Backup size:"
           ls -lh backup.sql
 
-      - name: Upload Backup Artifact
+      - name: Upload Backup
         uses: actions/upload-artifact@v4
         with:
-          name: supabase-backup
+          name: supabase-database-backup
           path: backup.sql
